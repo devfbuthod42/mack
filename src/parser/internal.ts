@@ -238,6 +238,15 @@ function parseThematicBreak(): DividerBlock {
   return divider();
 }
 
+function isValidUrl(url: string): boolean {
+  try {
+    new URL(url);
+    return true;
+  } catch (_) {
+    return false;
+  }
+}
+
 function parseHTML(
   element: marked.Tokens.HTML | marked.Tokens.Tag
 ): KnownBlock[] {
@@ -250,12 +259,23 @@ function parseHTML(
 
       return tags
         .map((img: Record<string, string>) => {
-          const url: string = img['@_src'];
-          return image(url, img['@_alt'] || url);
+          try {
+            const url: string = img['@_src'];
+            if (!url || !isValidUrl(url)) {
+              throw new Error('Image URL is invalid');
+            }
+            return image(url, img['@_alt'] || url);
+          } catch (error) {
+            console.error(`Error processing image: ${error.message}`);
+            return null; 
+          }
         })
-        .filter((e: Record<string, string>) => !!e);
-    } else return [];
+        .filter((e: Record<string, string> | null) => !!e);
+    } else {
+      return [];
+    }
   } catch (error) {
+    console.error(`Error parsing HTML: ${error.message}`);
     return [];
   }
 }
@@ -292,7 +312,7 @@ function parseToken(
     default:
       return [];
   }
-}
+}a
 
 export function parseBlocks(
   tokens: marked.TokensList,
