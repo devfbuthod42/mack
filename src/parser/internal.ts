@@ -251,7 +251,6 @@ function parseHTML(
   element: marked.Tokens.HTML | marked.Tokens.Tag
 ): KnownBlock[] {
   try {
-    console.log("CECI est un test pour voir si le fork est effectif");
     const parser = new XMLParser({ignoreAttributes: false});
     const res = parser.parse(element.raw);
 

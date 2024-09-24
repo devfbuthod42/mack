@@ -26,6 +26,7 @@ export async function markdownToBlocks(
 ): Promise<KnownBlock[]> {
   // Slack only wants &, <, and > escaped
   // https://api.slack.com/reference/surfaces/formatting#escaping
+  console.log("CECI est un test pour voir si le fork est effectif");
   const replacements: Record<string, string> = {
     '&': '&amp;',
     '<': '&lt;',
