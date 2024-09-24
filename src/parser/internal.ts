@@ -241,19 +241,23 @@ function parseThematicBreak(): DividerBlock {
 function parseHTML(
   element: marked.Tokens.HTML | marked.Tokens.Tag
 ): KnownBlock[] {
-  const parser = new XMLParser({ignoreAttributes: false});
-  const res = parser.parse(element.raw);
+  try {
+    const parser = new XMLParser({ignoreAttributes: false});
+    const res = parser.parse(element.raw);
 
-  if (res.img) {
-    const tags = res.img instanceof Array ? res.img : [res.img];
+    if (res.img) {
+      const tags = res.img instanceof Array ? res.img : [res.img];
 
-    return tags
-      .map((img: Record<string, string>) => {
-        const url: string = img['@_src'];
-        return image(url, img['@_alt'] || url);
-      })
-      .filter((e: Record<string, string>) => !!e);
-  } else return [];
+      return tags
+        .map((img: Record<string, string>) => {
+          const url: string = img['@_src'];
+          return image(url, img['@_alt'] || url);
+        })
+        .filter((e: Record<string, string>) => !!e);
+    } else return [];
+  } catch (error) {
+    return [];
+  }
 }
 
 function parseToken(
