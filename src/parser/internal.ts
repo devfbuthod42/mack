@@ -293,7 +293,7 @@ function parseToken(
     default:
       return [];
   }
-}a
+}
 
 export function parseBlocks(
   tokens: marked.TokensList,
