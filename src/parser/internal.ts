@@ -240,23 +240,6 @@ function parseThematicBreak(): DividerBlock {
   return divider();
 }
 
-function isValidHttpUrl(urlString: string): boolean {
-  try {
-    const url = new URL(urlString);
-
-    // On ne valide que les protocoles HTTP et HTTPS
-    return url.protocol === "http:" || url.protocol === "https:";
-  } catch (_) {
-    return false; // Si l'URL ne peut pas être parsée, elle est considérée comme invalide
-  }
-}
-
-function isLocalOrEmbeddedPath(urlString: string): boolean {
-  // Ignorer les chemins locaux (C:\, D:\, file://, embedded:...)
-  return urlString.startsWith('C:') || urlString.startsWith('D:') || 
-         urlString.startsWith('file:') || urlString.startsWith('embedded:');
-}
-
 async function parseHTML(
   element: marked.Tokens.HTML | marked.Tokens.Tag
 ): Promise<KnownBlock[]> {
@@ -304,70 +287,76 @@ async function parseHTML(
   }
 }
 
-async function parseToken(
-  token: marked.Token,
-  options: ParsingOptions
-): Promise<KnownBlock[]> {
-  switch (token.type) {
-    case 'heading':
-      return [parseHeading(token)];
-
-    case 'paragraph':
-      return parseParagraph(token);
-
-    case 'code':
-      return [parseCode(token)];
-
-    case 'blockquote':
-      return parseBlockquote(token);
-
-    case 'list':
-      return [parseList(token, options.lists)];
-
-    case 'table':
-      return [parseTable(token)];
-
-    case 'hr':
-      return [parseThematicBreak()];
-
-    case 'image':
-      const url = token.href;
-
-      // Vérification des URL locales ou intégrées avant de continuer
-      if (!url || isLocalOrEmbeddedPath(url) || !isValidHttpUrl(url)) {
-        return []; // Ignorer les images avec des chemins non HTTP/HTTPS
-      }
-
-      // Vérifier si l'image est accessible via une requête HEAD
-      try {
-        const response = await axios.head(url);
-        if (response.status >= 400) {
-          return []; // Ignorer si l'image n'est pas accessible
-        }
-      } catch (error) {
-        return []; // Ignorer les erreurs réseau ou d'accès
-      }
-
-      // Si l'image est valide, retourner le bloc image
-      return [image(url, token.text || url)];
-
-    case 'html':
-      return await parseHTML(token); // Attendre le résultat asynchrone de parseHTML
-
-    default:
-      return [];
-  }
-}
-
 export async function parseBlocks(
-  tokens: marked.TokensList,
+  tokens: marked.Token[],
   options: ParsingOptions = {}
 ): Promise<KnownBlock[]> {
-  const blockPromises = tokens.map(token => parseToken(token, options));
-  
-  // Attendre que toutes les promesses soient résolues
-  const blocks = await Promise.all(blockPromises);
+  const blocks: KnownBlock[] = [];
 
-  // Aplatir le tableau de résultats
-  return blocks.flat();
+  for (const token of tokens) {
+    switch (token.type) {
+      case 'heading':
+        blocks.push(header(token.text));
+        break;
+
+      case 'paragraph':
+        blocks.push(section(token.text));
+        break;
+
+      case 'image':
+        const url = token.href;
+
+        // Vérification des chemins locaux ou intégrés avant d'ajouter l'image
+        if (!url || isLocalOrEmbeddedPath(url) || !isValidHttpUrl(url)) {
+          continue; // Ignorer les images avec des chemins non HTTP/HTTPS
+        }
+
+        // Si l'image est valide, ajouter le bloc image
+        blocks.push(image(url, token.text || url));
+        break;
+
+      case 'code':
+        blocks.push(section(`\`\`\`${token.lang || ''}\n${token.text}\n\`\`\``));
+        break;
+
+      case 'blockquote':
+        blocks.push(section(`>${token.text}`));
+        break;
+
+      case 'list':
+        blocks.push(parseList(token, options.lists));
+        break;
+
+      case 'hr':
+        blocks.push(divider());
+        break;
+
+      case 'html':
+        const htmlBlocks = await parseHTML(token);
+        blocks.push(...htmlBlocks);
+        break;
+
+      default:
+        break;
+    }
+  }
+
+  return blocks;
+}
+
+function isLocalOrEmbeddedPath(urlString: string): boolean {
+  // Ignorer les chemins locaux (C:\, D:\, file://, embedded:...)
+  return urlString.startsWith('C:') || urlString.startsWith('D:') || 
+         urlString.startsWith('file:') || urlString.startsWith('embedded:');
+}
+
+function isValidHttpUrl(urlString: string): boolean {
+  try {
+    const url = new URL(urlString);
+
+    // On ne valide que les protocoles HTTP et HTTPS
+    return url.protocol === "http:" || url.protocol === "https:";
+  } catch (_) {
+    return false; // Si l'URL ne peut pas être parsée, elle est considérée comme invalide
+  }
 }
