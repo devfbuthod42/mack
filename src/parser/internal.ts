@@ -9,7 +9,6 @@ import {ListOptions, ParsingOptions} from '../types';
 import {section, divider, header, image} from '../slack';
 import {marked} from 'marked';
 import {XMLParser} from 'fast-xml-parser';
-import axios from 'axios';
 
 type PhrasingToken =
   | marked.Tokens.Link
@@ -239,51 +238,28 @@ function parseThematicBreak(): DividerBlock {
   return divider();
 }
 
-async function parseHTML(
+function parseHTML(
   element: marked.Tokens.HTML | marked.Tokens.Tag
-): Promise<KnownBlock[]> {
+): KnownBlock[] {
   try {
-    const parser = new XMLParser({ ignoreAttributes: false });
+    const parser = new XMLParser({ignoreAttributes: false});
     const res = parser.parse(element.raw);
 
     if (res.img) {
       const tags = res.img instanceof Array ? res.img : [res.img];
 
-      const imagePromises = tags.map(async (img: Record<string, string>) => {
-        const url: string = img['@_src'];
-
-        if (!url) {
-          console.warn("Image source (src) is missing or invalid, skipping this image.");
-          return null;
-        }
-
-        // Utiliser axios pour vérifier l'accessibilité de l'image
-        try {
-          const response = await axios.head(url);
-          if (response.status >= 400) {
-            console.warn(`Image at ${url} is not accessible, skipping.`);
-            return null;
-          }
-        } catch (error) {
-          console.warn(`Failed to fetch image at ${url}, skipping. Error: ${error.message}`);
-          return null;
-        }
-
-        return image(url, img['@_alt'] || url);
-      });
-
-      const checkedImages = await Promise.all(imagePromises);
-      return checkedImages.filter((e) => e !== null) as KnownBlock[];
-    } else {
-      return [];
-    }
+      return tags
+        .map((img: Record<string, string>) => {
+          const url: string = img['@_src'];
+          return image(url, img['@_alt'] || url);
+        })
+        .filter((e: Record<string, string>) => !!e);
+    } else return [];
   } catch (error) {
-    console.error(`Error parsing HTML: ${error.message}`);
+    console.error('Erreur lors du parsing HTML:', error);
     return [];
   }
 }
-
-
 
 function parseToken(
   token: marked.Token,
