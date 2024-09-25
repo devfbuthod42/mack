@@ -244,9 +244,10 @@ function isValidHttpUrl(urlString: string): boolean {
   try {
     const url = new URL(urlString);
 
+    // On ne valide que les protocoles HTTP et HTTPS
     return url.protocol === "http:" || url.protocol === "https:";
   } catch (_) {
-    return false;
+    return false; // Si l'URL ne peut pas être parsée, elle est considérée comme invalide
   }
 }
 
@@ -265,20 +266,22 @@ async function parseHTML(
       for (const img of tags) {
         const url: string = img['@_src'];
 
+        // Si l'URL n'est pas un lien HTTP/HTTPS, on l'ignore
         if (!url || !isValidHttpUrl(url)) {
-          continue;
+          continue; // Skip non-valid URLs (including local paths like C:\ or embedded:)
         }
 
-        // Check if image is accessible
+        // Vérifier si l'image est accessible via une requête HEAD
         try {
           const response = await axios.head(url);
           if (response.status >= 400) {
-            continue;
+            continue; // Ignorer si l'image n'est pas accessible
           }
         } catch (error) {
-          continue;
+          continue; // Ignorer les erreurs réseau ou d'accès
         }
 
+        // Si l'image est valide, l'ajouter aux blocs
         const imgBlock = image(url, img['@_alt'] || url);
         if (imgBlock) {
           imageBlocks.push(imgBlock);
@@ -290,10 +293,9 @@ async function parseHTML(
       return [];
     }
   } catch (error) {
-    return [];
+    return []; // En cas d'erreur générale, renvoyer un tableau vide sans logging
   }
 }
-
 
 async function parseToken(
   token: marked.Token,
