@@ -241,6 +241,7 @@ function parseThematicBreak(): DividerBlock {
 function parseHTML(
   element: marked.Tokens.HTML | marked.Tokens.Tag
 ): KnownBlock[] {
+  console.log("ON PASSE PAR LA");
   try {
     const parser = new XMLParser({ignoreAttributes: false});
     const res = parser.parse(element.raw);
