@@ -243,10 +243,10 @@ function parseThematicBreak(): DividerBlock {
 function isValidHttpUrl(urlString: string): boolean {
   try {
     const url = new URL(urlString);
-    // On vérifie uniquement les protocoles HTTP et HTTPS
+
     return url.protocol === "http:" || url.protocol === "https:";
   } catch (_) {
-    return false; // Si l'URL ne peut pas être parsée, elle est considérée comme invalide
+    return false;
   }
 }
 
@@ -260,38 +260,40 @@ async function parseHTML(
     if (res.img) {
       const tags = res.img instanceof Array ? res.img : [res.img];
 
-      const imagePromises = tags.map(async (img: Record<string, string>) => {
+      const imageBlocks: KnownBlock[] = [];
+
+      for (const img of tags) {
         const url: string = img['@_src'];
 
-        // Vérifier si l'URL est HTTP/HTTPS valide
         if (!url || !isValidHttpUrl(url)) {
-          return null; // Ignorer les URL non valides (ex : chemins locaux)
+          continue;
         }
 
-        // Vérifier si l'image est accessible avec une requête HEAD
+        // Check if image is accessible
         try {
           const response = await axios.head(url);
           if (response.status >= 400) {
-            return null; // Ignorer les images non accessibles
+            continue;
           }
         } catch (error) {
-          return null; // Ignorer les erreurs réseau ou d'accès
+          continue;
         }
 
-        // Retourner l'image valide
-        return image(url, img['@_alt'] || url);
-      });
+        const imgBlock = image(url, img['@_alt'] || url);
+        if (imgBlock) {
+          imageBlocks.push(imgBlock);
+        }
+      }
 
-      // Attendre la vérification de toutes les images et filtrer celles qui sont nulles
-      const checkedImages = await Promise.all(imagePromises);
-      return checkedImages.filter((e) => e !== null) as KnownBlock[];
+      return imageBlocks;
     } else {
       return [];
     }
   } catch (error) {
-    return []; // En cas d'erreur générale, renvoyer un tableau vide sans logging
+    return [];
   }
 }
+
 
 async function parseToken(
   token: marked.Token,
