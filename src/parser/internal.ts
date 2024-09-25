@@ -9,6 +9,7 @@ import {ListOptions, ParsingOptions} from '../types';
 import {section, divider, header, image} from '../slack';
 import {marked} from 'marked';
 import {XMLParser} from 'fast-xml-parser';
+import axios from 'axios';
 
 type PhrasingToken =
   | marked.Tokens.Link
@@ -238,33 +239,54 @@ function parseThematicBreak(): DividerBlock {
   return divider();
 }
 
-function parseHTML(
+async function parseHTML(
   element: marked.Tokens.HTML | marked.Tokens.Tag
-): KnownBlock[] {
+): Promise<KnownBlock[]> {
   try {
-    const parser = new XMLParser({ignoreAttributes: false});
+    const parser = new XMLParser({ ignoreAttributes: false });
     const res = parser.parse(element.raw);
 
     if (res.img) {
       const tags = res.img instanceof Array ? res.img : [res.img];
 
-      return tags
-        .map((img: Record<string, string>) => {
-          const url: string = img['@_src'];
-          return image(url, img['@_alt'] || url);
-        })
-        .filter((e: Record<string, string>) => !!e);
-    } else return [];
+      const imagePromises = tags.map(async (img: Record<string, string>) => {
+        const url: string = img['@_src'];
+
+        if (!url) {
+          console.warn("Image source (src) is missing or invalid, skipping this image.");
+          return null;
+        }
+
+        // Vérifier si l'image est accessible avec axios
+        try {
+          const response = await axios.head(url);
+          if (response.status >= 400) {
+            console.warn(`Image at ${url} is not accessible, skipping.`);
+            return null;
+          }
+        } catch (error) {
+          console.warn(`Failed to fetch image at ${url}, skipping. Error: ${error.message}`);
+          return null;
+        }
+
+        return image(url, img['@_alt'] || url);
+      });
+
+      const checkedImages = await Promise.all(imagePromises);
+      return checkedImages.filter((e) => e !== null) as KnownBlock[];
+    } else {
+      return [];
+    }
   } catch (error) {
     console.error('Erreur lors du parsing HTML:', error);
     return [];
   }
 }
 
-function parseToken(
+async function parseToken(
   token: marked.Token,
   options: ParsingOptions
-): KnownBlock[] {
+): Promise<KnownBlock[]> {
   switch (token.type) {
     case 'heading':
       return [parseHeading(token)];
@@ -288,16 +310,22 @@ function parseToken(
       return [parseThematicBreak()];
 
     case 'html':
-      return parseHTML(token);
+      return await parseHTML(token); // Attendre le résultat asynchrone de parseHTML
 
     default:
       return [];
   }
 }
 
-export function parseBlocks(
+export async function parseBlocks(
   tokens: marked.TokensList,
   options: ParsingOptions = {}
-): KnownBlock[] {
-  return tokens.flatMap(token => parseToken(token, options));
+): Promise<KnownBlock[]> {
+  const blockPromises = tokens.map(token => parseToken(token, options));
+  
+  // Attendre que toutes les promesses soient résolues
+  const blocks = await Promise.all(blockPromises);
+
+  // Aplatir le tableau de résultats
+  return blocks.flat();
 }
