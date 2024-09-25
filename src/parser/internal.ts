@@ -240,14 +240,14 @@ function parseThematicBreak(): DividerBlock {
   return divider();
 }
 
-function isValidHttpUrl(url: string): boolean {
-  let validUrl;
+function isValidHttpUrl(urlString: string): boolean {
   try {
-    validUrl = new URL(url);
+    const url = new URL(urlString);
+    // On vérifie uniquement les protocoles HTTP et HTTPS
+    return url.protocol === "http:" || url.protocol === "https:";
   } catch (_) {
-    return false;
+    return false; // Si l'URL ne peut pas être parsée, elle est considérée comme invalide
   }
-  return validUrl.protocol === "http:" || validUrl.protocol === "https:";
 }
 
 async function parseHTML(
@@ -263,32 +263,35 @@ async function parseHTML(
       const imagePromises = tags.map(async (img: Record<string, string>) => {
         const url: string = img['@_src'];
 
+        // Vérifier si l'URL est HTTP/HTTPS valide
         if (!url || !isValidHttpUrl(url)) {
-          return null;
+          return null; // Ignorer les URL non valides (ex : chemins locaux)
         }
 
+        // Vérifier si l'image est accessible avec une requête HEAD
         try {
           const response = await axios.head(url);
           if (response.status >= 400) {
-            return null;
+            return null; // Ignorer les images non accessibles
           }
         } catch (error) {
-          return null;
+          return null; // Ignorer les erreurs réseau ou d'accès
         }
 
+        // Retourner l'image valide
         return image(url, img['@_alt'] || url);
       });
 
+      // Attendre la vérification de toutes les images et filtrer celles qui sont nulles
       const checkedImages = await Promise.all(imagePromises);
       return checkedImages.filter((e) => e !== null) as KnownBlock[];
     } else {
       return [];
     }
   } catch (error) {
-    return [];
+    return []; // En cas d'erreur générale, renvoyer un tableau vide sans logging
   }
 }
-
 
 async function parseToken(
   token: marked.Token,
