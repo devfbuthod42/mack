@@ -69,36 +69,36 @@ describe('parser', () => {
   });
 });
 
-it('should truncate basic markdown', () => {
+it('should truncate basic markdown', async () => {
   const a4000 = new Array(4000).fill('a').join('');
   const a3000 = new Array(3000).fill('a').join('');
 
   const tokens = marked.lexer(a4000);
-  const actual = parseBlocks(tokens);
+  const actual = await parseBlocks(tokens); // Attente de la promesse
 
   const expected = [slack.section(a3000)];
 
   expect(actual.length).toStrictEqual(expected.length);
 });
 
-it('should truncate header', () => {
+it('should truncate header', async () => {
   const a200 = new Array(200).fill('a').join('');
   const a150 = new Array(150).fill('a').join('');
 
   const tokens = marked.lexer(`# ${a200}`);
-  const actual = parseBlocks(tokens);
+  const actual = await parseBlocks(tokens); // Attente de la promesse
 
   const expected = [slack.header(a150)];
 
   expect(actual.length).toStrictEqual(expected.length);
 });
 
-it('should truncate image title', () => {
+it('should truncate image title', async () => {
   const a3000 = new Array(3000).fill('a').join('');
   const a2000 = new Array(2000).fill('a').join('');
 
   const tokens = marked.lexer(`![${a3000}](url)`);
-  const actual = parseBlocks(tokens);
+  const actual = await parseBlocks(tokens); // Attente de la promesse
 
   const expected = [slack.image('url', a2000)];
 
