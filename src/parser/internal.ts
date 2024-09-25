@@ -295,7 +295,6 @@ async function parseHTML(
       return [];
     }
   } catch (error) {
-    console.error('Erreur lors du parsing HTML:', error);
     return [];
   }
 }
