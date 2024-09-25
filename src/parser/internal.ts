@@ -300,6 +300,25 @@ export async function parseBlocks(
         break;
 
       case 'paragraph':
+        // Si le paragraphe contient une image, on doit vérifier l'URL avant de l'ajouter
+        if (token.tokens.some(subToken => subToken.type === 'image')) {
+          const validImages = token.tokens.filter(subToken => {
+            if (subToken.type === 'image') {
+              const url = subToken.href;
+
+              // Ignorer les mauvaises URLs
+              if (!url || isLocalOrEmbeddedPath(url) || !isValidHttpUrl(url)) {
+                return false;
+              }
+            }
+            return true;
+          });
+
+          // Si aucune image n'est valide, on ignore le paragraphe entier
+          if (validImages.length === 0) {
+            continue; // Skip the entire paragraph
+          }
+        }
         blocks.push(section(token.text));
         break;
 
