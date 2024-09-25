@@ -256,22 +256,19 @@ async function parseHTML(
         const url: string = img['@_src'];
         console.log("URL STRING : ", url);
 
-        // Ignorer les chemins locaux ou intégrés explicitement
         if (!url || !isValidHttpUrl(url) || isLocalOrEmbeddedPath(url)) {
-          continue; // Skip non-valid URLs (including local paths like C:\ or embedded:)
+          continue;
         }
 
-        // Vérifier si l'image est accessible via une requête HEAD
         try {
           const response = await axios.head(url);
           if (response.status >= 400) {
-            continue; // Ignorer si l'image n'est pas accessible
+            continue;
           }
         } catch (error) {
-          continue; // Ignorer les erreurs réseau ou d'accès
+          continue;
         }
 
-        // Si l'image est valide, l'ajouter aux blocs
         const imgBlock = image(url, img['@_alt'] || url);
         if (imgBlock) {
           imageBlocks.push(imgBlock);
@@ -283,7 +280,7 @@ async function parseHTML(
       return [];
     }
   } catch (error) {
-    return []; // En cas d'erreur générale, renvoyer un tableau vide sans logging
+    return [];
   }
 }
 
@@ -300,13 +297,11 @@ export async function parseBlocks(
         break;
 
       case 'paragraph':
-        // Si le paragraphe contient une image, on doit vérifier l'URL avant de l'ajouter
         if (token.tokens.some(subToken => subToken.type === 'image')) {
           const validImages = token.tokens.filter(subToken => {
             if (subToken.type === 'image') {
               const url = subToken.href;
 
-              // Ignorer les mauvaises URLs
               if (!url || isLocalOrEmbeddedPath(url) || !isValidHttpUrl(url)) {
                 return false;
               }
@@ -314,9 +309,8 @@ export async function parseBlocks(
             return true;
           });
 
-          // Si aucune image n'est valide, on ignore le paragraphe entier
           if (validImages.length === 0) {
-            continue; // Skip the entire paragraph
+            continue;
           }
         }
         blocks.push(section(token.text));
@@ -325,12 +319,10 @@ export async function parseBlocks(
       case 'image':
         const url = token.href;
 
-        // Vérification des chemins locaux ou intégrés avant d'ajouter l'image
         if (!url || isLocalOrEmbeddedPath(url) || !isValidHttpUrl(url)) {
-          continue; // Ignorer les images avec des chemins non HTTP/HTTPS
+          continue;
         }
 
-        // Si l'image est valide, ajouter le bloc image
         blocks.push(image(url, token.text || url));
         break;
 
@@ -364,7 +356,6 @@ export async function parseBlocks(
 }
 
 function isLocalOrEmbeddedPath(urlString: string): boolean {
-  // Ignorer les chemins locaux (C:\, D:\, file://, embedded:...)
   return urlString.startsWith('C:') || urlString.startsWith('D:') || 
          urlString.startsWith('file:') || urlString.startsWith('embedded:');
 }
@@ -373,9 +364,8 @@ function isValidHttpUrl(urlString: string): boolean {
   try {
     const url = new URL(urlString);
 
-    // On ne valide que les protocoles HTTP et HTTPS
     return url.protocol === "http:" || url.protocol === "https:";
   } catch (_) {
-    return false; // Si l'URL ne peut pas être parsée, elle est considérée comme invalide
+    return false;
   }
 }
