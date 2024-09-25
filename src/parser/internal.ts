@@ -251,6 +251,12 @@ function isValidHttpUrl(urlString: string): boolean {
   }
 }
 
+function isLocalOrEmbeddedPath(urlString: string): boolean {
+  // Ignorer les chemins locaux (C:\, D:\, file://, embedded:...)
+  return urlString.startsWith('C:') || urlString.startsWith('D:') || 
+         urlString.startsWith('file:') || urlString.startsWith('embedded:');
+}
+
 async function parseHTML(
   element: marked.Tokens.HTML | marked.Tokens.Tag
 ): Promise<KnownBlock[]> {
@@ -266,8 +272,8 @@ async function parseHTML(
       for (const img of tags) {
         const url: string = img['@_src'];
 
-        // Si l'URL n'est pas un lien HTTP/HTTPS, on l'ignore
-        if (!url || !isValidHttpUrl(url)) {
+        // Ignorer les chemins locaux ou intégrés explicitement
+        if (!url || !isValidHttpUrl(url) || isLocalOrEmbeddedPath(url)) {
           continue; // Skip non-valid URLs (including local paths like C:\ or embedded:)
         }
 
