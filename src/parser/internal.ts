@@ -10,6 +10,7 @@ import {section, divider, header, image} from '../slack';
 import {marked} from 'marked';
 import {XMLParser} from 'fast-xml-parser';
 import axios from 'axios';
+import { URL } from 'url';
 
 type PhrasingToken =
   | marked.Tokens.Link
@@ -239,6 +240,16 @@ function parseThematicBreak(): DividerBlock {
   return divider();
 }
 
+function isValidHttpUrl(url: string): boolean {
+  let validUrl;
+  try {
+    validUrl = new URL(url);
+  } catch (_) {
+    return false;
+  }
+  return validUrl.protocol === "http:" || validUrl.protocol === "https:";
+}
+
 async function parseHTML(
   element: marked.Tokens.HTML | marked.Tokens.Tag
 ): Promise<KnownBlock[]> {
@@ -254,7 +265,13 @@ async function parseHTML(
 
         if (!url) {
           console.warn("Image source (src) is missing or invalid, skipping this image.");
-          return null;
+          return null; // Ignorer cette image si elle est invalide
+        }
+
+        // Vérifier si l'URL est valide et HTTP/HTTPS
+        if (!isValidHttpUrl(url)) {
+          console.warn(`Skipping non-HTTP/HTTPS URL: ${url}`);
+          return null; // Ignorer les chemins locaux ou non HTTP/HTTPS
         }
 
         // Vérifier si l'image est accessible avec axios
