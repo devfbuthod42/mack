@@ -263,26 +263,16 @@ async function parseHTML(
       const imagePromises = tags.map(async (img: Record<string, string>) => {
         const url: string = img['@_src'];
 
-        if (!url) {
-          console.warn("Image source (src) is missing or invalid, skipping this image.");
-          return null; // Ignorer cette image si elle est invalide
+        if (!url || !isValidHttpUrl(url)) {
+          return null;
         }
 
-        // Vérifier si l'URL est valide et HTTP/HTTPS
-        if (!isValidHttpUrl(url)) {
-          console.warn(`Skipping non-HTTP/HTTPS URL: ${url}`);
-          return null; // Ignorer les chemins locaux ou non HTTP/HTTPS
-        }
-
-        // Vérifier si l'image est accessible avec axios
         try {
           const response = await axios.head(url);
           if (response.status >= 400) {
-            console.warn(`Image at ${url} is not accessible, skipping.`);
             return null;
           }
         } catch (error) {
-          console.warn(`Failed to fetch image at ${url}, skipping. Error: ${error.message}`);
           return null;
         }
 
@@ -298,6 +288,7 @@ async function parseHTML(
     return [];
   }
 }
+
 
 async function parseToken(
   token: marked.Token,
