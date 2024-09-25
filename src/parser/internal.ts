@@ -254,7 +254,6 @@ async function parseHTML(
 
       for (const img of tags) {
         const url: string = img['@_src'];
-        console.log("URL STRING : ", url);
 
         if (!url || !isValidHttpUrl(url) || isLocalOrEmbeddedPath(url)) {
           continue;
