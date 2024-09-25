@@ -238,29 +238,54 @@ function parseThematicBreak(): DividerBlock {
   return divider();
 }
 
-function parseHTML(
+async function parseHTML(
   element: marked.Tokens.HTML | marked.Tokens.Tag
-): KnownBlock[] {
-  console.log("ON PASSE PAR LA");
+): Promise<KnownBlock[]> {
+  const validImages: KnownBlock[] = [];
+
   try {
-    const parser = new XMLParser({ignoreAttributes: false});
+    const parser = new XMLParser({ ignoreAttributes: false });
     const res = parser.parse(element.raw);
 
     if (res.img) {
       const tags = res.img instanceof Array ? res.img : [res.img];
 
-      return tags
-        .map((img: Record<string, string>) => {
-          const url: string = img['@_src'];
-          return image(url, img['@_alt'] || url);
-        })
-        .filter((e: Record<string, string>) => !!e);
-    } else return [];
+      // Utilisation de `Promise.all` pour vérifier chaque image de manière asynchrone
+      const imagePromises = tags.map(async (img: Record<string, string>) => {
+        const url: string = img['@_src'];
+
+        // Vérifier si l'attribut `src` est manquant ou vide
+        if (!url) {
+          console.warn("Image source (src) is missing or invalid, skipping this image.");
+          return null; // Ignorer cette image si elle est invalide
+        }
+
+        // Vérifier si l'image est accessible
+        try {
+          const response = await fetch(url, { method: 'HEAD' });
+          if (!response.ok) {
+            console.warn(`Image at ${url} is not accessible, skipping.`);
+            return null;
+          }
+        } catch (error) {
+          console.warn(`Failed to fetch image at ${url}, skipping. Error: ${error.message}`);
+          return null;
+        }
+
+        return image(url, img['@_alt'] || url);
+      });
+
+      const checkedImages = await Promise.all(imagePromises);
+      return checkedImages.filter((e) => e !== null);
+    } else {
+      return [];
+    }
   } catch (error) {
     console.error(`Error parsing HTML: ${error.message}`);
     return [];
   }
 }
+
 
 function parseToken(
   token: marked.Token,
