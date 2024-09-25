@@ -9,6 +9,7 @@ import {ListOptions, ParsingOptions} from '../types';
 import {section, divider, header, image} from '../slack';
 import {marked} from 'marked';
 import {XMLParser} from 'fast-xml-parser';
+import axios from 'axios';
 
 type PhrasingToken =
   | marked.Tokens.Link
@@ -241,8 +242,6 @@ function parseThematicBreak(): DividerBlock {
 async function parseHTML(
   element: marked.Tokens.HTML | marked.Tokens.Tag
 ): Promise<KnownBlock[]> {
-  const validImages: KnownBlock[] = [];
-
   try {
     const parser = new XMLParser({ ignoreAttributes: false });
     const res = parser.parse(element.raw);
@@ -250,20 +249,18 @@ async function parseHTML(
     if (res.img) {
       const tags = res.img instanceof Array ? res.img : [res.img];
 
-      // Utilisation de `Promise.all` pour vérifier chaque image de manière asynchrone
       const imagePromises = tags.map(async (img: Record<string, string>) => {
         const url: string = img['@_src'];
 
-        // Vérifier si l'attribut `src` est manquant ou vide
         if (!url) {
           console.warn("Image source (src) is missing or invalid, skipping this image.");
-          return null; // Ignorer cette image si elle est invalide
+          return null;
         }
 
-        // Vérifier si l'image est accessible
+        // Utiliser axios pour vérifier l'accessibilité de l'image
         try {
-          const response = await fetch(url, { method: 'HEAD' });
-          if (!response.ok) {
+          const response = await axios.head(url);
+          if (response.status >= 400) {
             console.warn(`Image at ${url} is not accessible, skipping.`);
             return null;
           }
@@ -276,7 +273,7 @@ async function parseHTML(
       });
 
       const checkedImages = await Promise.all(imagePromises);
-      return checkedImages.filter((e) => e !== null);
+      return checkedImages.filter((e) => e !== null) as KnownBlock[];
     } else {
       return [];
     }
@@ -285,6 +282,7 @@ async function parseHTML(
     return [];
   }
 }
+
 
 
 function parseToken(
