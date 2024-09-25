@@ -330,6 +330,27 @@ async function parseToken(
     case 'hr':
       return [parseThematicBreak()];
 
+    case 'image':
+      const url = token.href;
+
+      // Vérification des URL locales ou intégrées avant de continuer
+      if (!url || isLocalOrEmbeddedPath(url) || !isValidHttpUrl(url)) {
+        return []; // Ignorer les images avec des chemins non HTTP/HTTPS
+      }
+
+      // Vérifier si l'image est accessible via une requête HEAD
+      try {
+        const response = await axios.head(url);
+        if (response.status >= 400) {
+          return []; // Ignorer si l'image n'est pas accessible
+        }
+      } catch (error) {
+        return []; // Ignorer les erreurs réseau ou d'accès
+      }
+
+      // Si l'image est valide, retourner le bloc image
+      return [image(url, token.text || url)];
+
     case 'html':
       return await parseHTML(token); // Attendre le résultat asynchrone de parseHTML
 
